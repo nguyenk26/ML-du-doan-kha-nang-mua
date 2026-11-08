@@ -19,10 +19,25 @@ from sklearn.metrics import (
 )
 
 # =====================================================================
+# TƯƠNG THÍCH PHIÊN BẢN SCIKIT-LEARN (STREAMLIT CLOUD / LINUX COMPATIBILITY)
+# =====================================================================
+# Khắc phục lỗi: module 'sklearn.compose._column_transformer' has no attribute '_RemainderColsList'
+# khi unpickle mô hình được huấn luyện trên scikit-learn 1.6+ sang môi trường khác
+from collections import UserList
+import sklearn.compose._column_transformer as _ct
+
+if not hasattr(_ct, "_RemainderColsList"):
+    class _RemainderColsList(UserList):
+        def __init__(self, columns=(), *args, **kwargs):
+            super().__init__(columns)
+            self.data = list(columns)
+    _ct._RemainderColsList = _RemainderColsList
+
+# =====================================================================
 # 1. CẤU HÌNH TRANG STREAMLIT
 # =====================================================================
 st.set_page_config(
-    page_title="Dự đoán Ý định Mua hàng E-Commerce | UEL",
+    page_title="Dự đoán Ý định Mua hàng E-Commerce",
     page_icon="🛒",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -151,6 +166,13 @@ POSSIBLE_DIRS = [
 ]
 
 def find_asset_dir():
+    # 1. Ưu tiên kiểm tra thư mục hiện tại của file app.py (rất quan trọng trên Streamlit Cloud / Docker)
+    m_path = os.path.join(CURRENT_DIR, "random_forest_model.pkl")
+    c_path = os.path.join(CURRENT_DIR, "model_config.json")
+    if os.path.exists(m_path) and os.path.exists(c_path):
+        return CURRENT_DIR
+
+    # 2. Kiểm tra các đường dẫn có thể trên máy local Windows
     for d in POSSIBLE_DIRS:
         if os.path.exists(d):
             m_path = os.path.join(d, "random_forest_model.pkl")
@@ -188,6 +210,8 @@ def load_ml_pipeline(model_dir: str):
 @st.cache_data
 def load_cleaned_data(model_dir: str):
     data_path = os.path.join(model_dir, "online_shoppers_cleaned.csv")
+    if not os.path.exists(data_path):
+        data_path = os.path.join(CURRENT_DIR, "online_shoppers_cleaned.csv")
     if not os.path.exists(data_path):
         alt = os.path.join(os.path.dirname(model_dir), "online_shoppers_intention.csv")
         if os.path.exists(alt):
@@ -248,7 +272,6 @@ with st.sidebar:
     st.markdown(
         """
         **Đồ án Machine Learning**  
-        🏛️ Trường ĐH Kinh tế - Luật (UEL)  
         📂 UCI Dataset: *Online Shoppers*  
         🤖 Thuật toán: *Random Forest Pipeline*  
         """
@@ -260,7 +283,6 @@ with st.sidebar:
 st.markdown(
     """
     <div class="main-header">
-        <span class="badge-uel">UEL - KHOA HỆ THỐNG THÔNG TIN / TOÁN KINH TẾ</span>
         <h1>🛒 Hệ Thống Dự Đoán Khả Năng Mua Hàng Trực Tuyến</h1>
         <p>Phân tích hành vi phiên truy cập (Session-based E-Commerce) & Dự đoán giao dịch bằng Random Forest Pipeline</p>
     </div>
@@ -1173,7 +1195,7 @@ with tab_about:
         """
         #### 1. Tổng quan Đề tài
         - **Tên đề tài**: Dự đoán khả năng phát sinh giao dịch mua hàng của khách truy cập website thương mại điện tử bằng Machine Learning.
-        - **Đơn vị thực hiện**: Sinh viên / Nhóm nghiên cứu - Trường Đại học Kinh tế - Luật (UEL), ĐHQG TP.HCM.
+        - **Đơn vị thực hiện**: Nhóm nghiên cứu Machine Learning Thương mại điện tử.
         - **Nguồn dữ liệu**: *Online Shoppers Purchasing Intention Dataset* công bố bởi Sakar & Kastro (2018) trên UCI Machine Learning Repository.
         - **Quy mô dữ liệu**: 12.330 phiên ban đầu, sau làm sạch loại bỏ 125 dòng trùng còn **12.205 phiên truy cập**.
 
