@@ -297,11 +297,10 @@ if model is None or df_clean is None:
 # =====================================================================
 # 5. TABS ĐIỀU HƯỚNG
 # =====================================================================
-tab_pred, tab_batch, tab_eda, tab_model, tab_about = st.tabs(
+tab_pred, tab_batch, tab_model, tab_about = st.tabs(
     [
         "🎯 Dự đoán Phiên Đơn Lẻ",
         "📁 Dự đoán Hàng Loạt (Batch)",
-        "📊 Trực quan Dữ liệu (EDA)",
         "🧠 Giải thích & Tối ưu Ngưỡng",
         "📑 Giới thiệu & Tài liệu",
     ]
@@ -937,145 +936,7 @@ with tab_batch:
                     )
 
 # =====================================================================
-# TAB 3: TRỰC QUAN DỮ LIỆU & EDA
-# =====================================================================
-with tab_eda:
-    st.markdown("### 📊 Khám phá Dữ liệu & Hành vi Người dùng (EDA Insights)")
-    st.write(
-        "Bộ dữ liệu sau khi làm sạch bao gồm **12.205 phiên truy cập**, phân tích các yếu tố quyết định chuyển đổi mua sắm."
-    )
-
-    # 4 chỉ số tổng quát
-    e1, e2, e3, e4 = st.columns(4)
-    total_sess = len(df_clean)
-    num_rev_true = int(df_clean["Revenue"].sum())
-    num_rev_false = total_sess - num_rev_true
-    pct_rev_true = (num_rev_true / total_sess) * 100
-
-    with e1:
-        st.markdown(
-            f"""
-            <div class="card-kpi">
-                <h4>Tổng Số Phiên Đã Làm Sạch</h4>
-                <div class="value">{total_sess:,}</div>
-                <div class="subtext">125 bản ghi trùng lặp đã loại bỏ</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with e2:
-        st.markdown(
-            f"""
-            <div class="card-kpi">
-                <h4>Phiên Có Mua Hàng (Revenue=True)</h4>
-                <div class="value" style="color:#10b981;">{num_rev_true:,}</div>
-                <div class="subtext">Tỷ lệ: {pct_rev_true:.2f}%</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with e3:
-        st.markdown(
-            f"""
-            <div class="card-kpi">
-                <h4>Phiên Không Mua (Revenue=False)</h4>
-                <div class="value" style="color:#ef4444;">{num_rev_false:,}</div>
-                <div class="subtext">Tỷ lệ: {100-pct_rev_true:.2f}%</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with e4:
-        st.markdown(
-            f"""
-            <div class="card-kpi">
-                <h4>Mức Độ Mất Cân Bằng Lớp</h4>
-                <div class="value" style="color:#f59e0b;">5.4 : 1</div>
-                <div class="subtext">Lý do cần hiệu chỉnh ngưỡng 0.30</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("---")
-
-    # Biểu đồ EDA 1 & 2
-    eda_col1, eda_col2 = st.columns(2)
-    with eda_col1:
-        # Tỷ lệ chuyển đổi theo Tháng
-        month_order = ["Feb", "Mar", "May", "June", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-        df_month = df_clean.groupby("Month")["Revenue"].agg(["count", "mean"]).reset_index()
-        df_month["mean"] = df_month["mean"] * 100
-        # Sắp xếp theo thứ tự tháng
-        df_month["month_cat"] = pd.Categorical(df_month["Month"], categories=month_order, ordered=True)
-        df_month = df_month.sort_values("month_cat")
-
-        fig_month = px.bar(
-            df_month,
-            x="Month",
-            y="mean",
-            text=df_month["mean"].apply(lambda x: f"{x:.1f}%"),
-            title="Tỷ lệ Chuyển đổi (%) theo Tháng (Đỉnh cao Tháng 11 - Black Friday)",
-            color="mean",
-            color_continuous_scale="Viridis",
-            labels={"mean": "Tỷ lệ mua (%)", "Month": "Tháng"},
-        )
-        fig_month.update_layout(height=360, coloraxis_showscale=False)
-        st.plotly_chart(fig_month, use_container_width=True)
-
-    with eda_col2:
-        # Tỷ lệ chuyển đổi theo Loại Khách (VisitorType)
-        df_vis = df_clean.groupby("VisitorType")["Revenue"].agg(["count", "mean"]).reset_index()
-        df_vis["mean"] = df_vis["mean"] * 100
-        fig_vis = px.bar(
-            df_vis,
-            x="VisitorType",
-            y="mean",
-            text=df_vis["mean"].apply(lambda x: f"{x:.1f}%"),
-            title="Tỷ lệ Chuyển đổi (%) theo Loại Khách (Khách mới vượt trội: 24.9%)",
-            color="VisitorType",
-            color_discrete_sequence=["#06b6d4", "#f43f5e", "#8b5cf6"],
-            labels={"mean": "Tỷ lệ mua (%)", "VisitorType": "Loại khách"},
-        )
-        fig_vis.update_layout(height=360, showlegend=False)
-        st.plotly_chart(fig_vis, use_container_width=True)
-
-    # Biểu đồ EDA 3 & 4
-    eda_col3, eda_col4 = st.columns(2)
-    with eda_col3:
-        # Phân bố PageValues giữa Người mua và Không mua
-        fig_pv = px.box(
-            df_clean[df_clean["PageValues"] < 100],
-            x="Revenue",
-            y="PageValues",
-            color="Revenue",
-            title="So sánh Phân phối Điểm PageValues giữa Nhóm Mua và Không Mua",
-            labels={"Revenue": "Có Mua Hàng?", "PageValues": "Điểm Giá trị Trang (PageValues)"},
-            color_discrete_map={True: "#10b981", False: "#ef4444"},
-        )
-        fig_pv.update_layout(height=360)
-        st.plotly_chart(fig_pv, use_container_width=True)
-
-    with eda_col4:
-        # Tỷ lệ chuyển đổi Cuối tuần vs Ngày thường
-        df_wk = df_clean.groupby("Weekend")["Revenue"].agg(["count", "mean"]).reset_index()
-        df_wk["mean"] = df_wk["mean"] * 100
-        df_wk["Label"] = df_wk["Weekend"].map({True: "Cuối tuần (Weekend)", False: "Ngày thường (Weekday)"})
-        fig_wk = px.bar(
-            df_wk,
-            x="Label",
-            y="mean",
-            text=df_wk["mean"].apply(lambda x: f"{x:.1f}%"),
-            title="Tỷ lệ Chuyển đổi: Cuối tuần (17.4%) vs Ngày thường (14.9%)",
-            color="Label",
-            color_discrete_sequence=["#3b82f6", "#10b981"],
-            labels={"mean": "Tỷ lệ mua (%)", "Label": "Thời điểm"},
-        )
-        fig_wk.update_layout(height=360, showlegend=False)
-        st.plotly_chart(fig_wk, use_container_width=True)
-
-# =====================================================================
-# TAB 4: GIẢI THÍCH MÔ HÌNH & TỐI ƯU NGƯỠNG (XAI & THRESHOLD LAB)
+# TAB 3: GIẢI THÍCH MÔ HÌNH & TỐI ƯU NGƯỠNG (XAI & THRESHOLD LAB)
 # =====================================================================
 with tab_model:
     st.markdown("### 🧠 Kiến trúc Mô hình & Phòng Thí nghiệm Tối ưu Ngưỡng (Threshold Lab)")
@@ -1186,7 +1047,7 @@ with tab_model:
         )
 
 # =====================================================================
-# TAB 5: GIỚI THIỆU ĐỀ TÀI & TÀI LIỆU (ABOUT & DOCS)
+# TAB 4: GIỚI THIỆU ĐỀ TÀI & TÀI LIỆU (ABOUT & DOCS)
 # =====================================================================
 with tab_about:
     st.markdown("### 📑 Giới thiệu Đề tài Nghiên cứu & Tài liệu Hướng dẫn")
